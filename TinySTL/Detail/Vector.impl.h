@@ -141,14 +141,19 @@ namespace TinySTL{
 		InputIterator last,
 		std::false_type){
 		difference_type locationLeft = endOfStorage_ - finish_; // the size of left storage
-		difference_type locationNeed = last - first;
+		difference_type locationNeed = distance(first, last);//last - first;
 
 		if (locationLeft >= locationNeed){
-			iterator tempPtr = end() - 1;
-			for (; tempPtr - position >= 0; --tempPtr){//move the [position, finish_) back
-				*(tempPtr + locationNeed) = *tempPtr;
+			if (finish_ - position > locationNeed){
+				TinySTL::uninitialized_copy(finish_ - locationNeed, finish_, finish_);
+				std::copy_backward(position, finish_ - locationNeed, finish_);
+				std::copy(first, last, position);
 			}
-			TinySTL::uninitialized_copy(first, last, position);
+			else{
+				iterator temp = TinySTL::uninitialized_copy(first + (finish_ - position), last, finish_);
+				TinySTL::uninitialized_copy(position, finish_, temp);
+				std::copy(first, first + (finish_ - position), position);
+			}
 			finish_ += locationNeed;
 		}
 		else{
@@ -165,7 +170,8 @@ namespace TinySTL{
 		if (locationLeft >= locationNeed){
 			auto tempPtr = end() - 1;
 			for (; tempPtr - position >= 0; --tempPtr){//move the [position, finish_) back
-				*(tempPtr + locationNeed) = *tempPtr;
+				//*(tempPtr + locationNeed) = *tempPtr;//bug
+				construct(tempPtr + locationNeed, *tempPtr);
 			}
 			TinySTL::uninitialized_fill_n(position, n, value);
 			finish_ += locationNeed;
@@ -224,7 +230,12 @@ namespace TinySTL{
 	}
 	template<class T, class Alloc>
 	void vector<T, Alloc>::shrink_to_fit(){
-		dataAllocator::deallocate(finish_, endOfStorage_ - finish_);
+		//dataAllocator::deallocate(finish_, endOfStorage_ - finish_);
+		//endOfStorage_ = finish_;
+		T* t = (T*)dataAllocator::allocate(size());
+		finish_ = TinySTL::uninitialized_copy(start_, finish_, t);
+		dataAllocator::deallocate(start_, capacity());
+		start_ = t;
 		endOfStorage_ = finish_;
 	}
 	template<class T, class Alloc>
